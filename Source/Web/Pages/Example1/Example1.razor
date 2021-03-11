@@ -1,0 +1,71 @@
+@page "/example1"
+@inject IStateManager State
+@inject IMediator Eventor
+@inject ISnackbar Snackbar
+
+<h1>Example</h1>
+
+<MudText>@BoundText</MudText>
+
+<MudForm>
+	<MudCard Class="col-4">
+		<MudCardContent>
+			<MudTextField @bind-Value="CurrentUser.FirstName" Label="First Name"></MudTextField>
+
+			<MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="ButtonClicked" Class="mt-3">Save</MudButton>
+		</MudCardContent>
+
+		
+		<!--
+
+		Like the example above, they see these new values when the "submit" button is clicked
+		-----
+		<address @bind-value="CurrentUser.Addresses" />
+
+		-->
+
+	</MudCard>
+</MudForm>
+
+
+
+
+@code
+{
+	public User CurrentUser { get; set; } = new User();
+	public int Count { get; set; }
+	public string BoundText { get; set; }
+
+	protected override async Task OnParametersSetAsync()
+	{
+		CurrentUser = await State.GetState<User>();
+
+		State.OnCommitted<User>(this, (sender, user) =>
+		{
+			CurrentUser = user;
+			StateHasChanged();
+			return Task.CompletedTask;
+		});
+
+
+		Eventor.Subscribe(this, "Click", (object sender, string value) =>
+		{
+			BoundText = value;
+			StateHasChanged();
+			return Task.CompletedTask;
+		});
+
+		await base.OnParametersSetAsync();
+	}
+
+	protected async Task ButtonClicked()
+	{
+		await Eventor.Publish(this, "Click", $"Button Clicked {++Count} times!");
+
+		await State.CommitState<User>(CurrentUser);
+		await Eventor.Publish<User>(this, CurrentUser);
+
+		Snackbar.Add("Save Completed!", Severity.Info);
+	}
+
+}
